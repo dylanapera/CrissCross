@@ -1,4 +1,4 @@
-# Tic-Tac-Toe (Knots and Crosses)
+# Tic-Tac-Toe (Knots and Crosses) | [Free to Play](https://aperacrisscross.azurewebsites.net)
 
 A simple web-based Tic-Tac-Toe game built with Python Flask backend and vanilla JavaScript frontend.
 
