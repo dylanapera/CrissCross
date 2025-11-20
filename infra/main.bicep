@@ -1,0 +1,77 @@
+targetScope = 'subscription'
+
+@minLength(1)
+@maxLength(64)
+@description('Name of the environment that can be used as part of naming resource convention')
+param environmentName string
+
+@minLength(1)
+@description('Primary location for all resources')
+param location string
+
+// Variables
+var abbrs = loadJsonContent('./abbreviations.json')
+var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
+var tags = {
+  'azd-env-name': environmentName
+}
+
+// Resource Group
+resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
+  name: '${abbrs.resourcesResourceGroups}${environmentName}'
+  location: location
+  tags: tags
+}
+
+// App Service Plan
+module appServicePlan './core/host/appserviceplan.bicep' = {
+  name: 'appserviceplan'
+  scope: rg
+  params: {
+    name: '${abbrs.webServerFarms}${resourceToken}'
+    location: location
+    tags: tags
+    sku: {
+      name: 'B1'
+      capacity: 1
+    }
+    kind: 'linux'
+    reserved: true
+  }
+}
+
+// Web App
+module web './core/host/appservice.bicep' = {
+  name: 'web'
+  scope: rg
+  params: {
+    name: '${abbrs.webSitesAppService}web-${resourceToken}'
+    location: location
+    tags: union(tags, { 'azd-service-name': 'web' })
+    appServicePlanId: appServicePlan.outputs.id
+    runtimeName: 'python'
+    runtimeVersion: '3.11'
+    appCommandLine: 'gunicorn --bind=0.0.0.0 --timeout 600 app:app'
+    appSettings: {
+      SCM_DO_BUILD_DURING_DEPLOYMENT: 'true'
+    }
+  }
+}
+
+// Application Insights
+module monitoring './core/monitor/monitoring.bicep' = {
+  name: 'monitoring'
+  scope: rg
+  params: {
+    location: location
+    tags: tags
+    logAnalyticsName: '${abbrs.operationalInsightsWorkspaces}${resourceToken}'
+    applicationInsightsName: '${abbrs.insightsComponents}${resourceToken}'
+  }
+}
+
+// Outputs
+output AZURE_LOCATION string = location
+output AZURE_TENANT_ID string = tenant().tenantId
+output AZURE_RESOURCE_GROUP string = rg.name
+output WEB_URI string = web.outputs.uri

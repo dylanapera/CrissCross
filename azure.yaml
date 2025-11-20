@@ -1,0 +1,8 @@
+name: crisscross
+metadata:
+  template: crisscross-tictactoe
+services:
+  web:
+    project: .
+    language: python
+    host: appservice
